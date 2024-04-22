@@ -11,6 +11,7 @@
 #include <SLelement.h>
 #include <math.h>
 #include <chrono>
+#include <algorithm>
 using namespace std;
 using namespace bridges;
 
@@ -24,6 +25,8 @@ using namespace bridges;
 */
 
 void bfs(GraphAdjList<int>& graph, int nodeAmt, int nodeFrom, int nodeTo);
+
+void dfs(GraphAdjList<int>& graph, int nodeAmt, int nodeFrom, int nodeTo);
 
 int main(int argc, char **argv)
 {
@@ -188,6 +191,9 @@ int main(int argc, char **argv)
     {
         bfs(graph, nodeAmt, nodeFrom, nodeTo);
     }
+    else if (selection == 2) {
+        dfs(graph, nodeAmt, nodeFrom, nodeTo);
+    }
     //bfs(graph, nodeAmt, nodeFrom, nodeTo);
 
 
@@ -281,3 +287,95 @@ void bfs(GraphAdjList<int>& graph, int nodeAmt, int nodeFrom, int nodeTo)
     graph.getVertex(nodeTo)->setColor("green");
 
 }
+
+void dfs(GraphAdjList<int>& graph, int nodeAmt, int nodeFrom, int nodeTo) {
+
+    std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+
+    // Stack for nodes during first dfs
+    std::stack<int> nodeStack;
+
+    // Map for visited nodes
+    std::unordered_map<int, bool> visited;
+
+    // Array for each parent for path
+    std::vector<int> parentTracker(nodeAmt, -1);
+
+    // Array for distance from start node
+    std::vector<int> distance(nodeAmt, INT_MAX);
+
+    nodeStack.push(nodeFrom);
+    visited[nodeFrom] = true;
+    distance[nodeFrom] = 0;
+
+    // Explore all possible paths
+    while (!nodeStack.empty()) {
+        int currNode = nodeStack.top();
+        nodeStack.pop();
+
+        // Print distance when target is reached
+        if (currNode == nodeTo) {
+            std::cout << "Found node! Distance: " << distance[currNode] << std::endl;
+            break;
+        }
+
+        // Get adjacent nodes
+        SLelement<Edge<int>>* adj = graph.getAdjacencyList(currNode);
+        while (adj != nullptr) {
+            int num;
+            try {
+                num = stoi(adj->getLabel());
+            } catch (const std::invalid_argument& e) {
+                std::cerr << "Invalid argument for stoi: " << adj->getValue().getLabel() << " at node " << currNode << std::endl;
+                adj = adj->getNext();
+                continue;
+            }
+
+            // Handle adjacent nodes
+            if (!visited[num]) {
+                nodeStack.push(num);
+                visited[num] = true;
+                parentTracker[num] = currNode;
+                distance[num] = distance[currNode] + 1;
+            }
+            adj = adj->getNext();
+        }
+    }
+
+    // Build path
+    std::vector<int> path;
+    if (parentTracker[nodeTo] != -1 || nodeFrom == nodeTo) {
+        int at = nodeTo;
+        while (at != -1) {
+            path.push_back(at);
+            at = parentTracker[at];
+        }
+        std::reverse(path.begin(), path.end());
+        std::cout << "Path from " << nodeFrom << " to " << nodeTo << " is: ";
+        for (int i = int(path.size() - 1); i > 0; i--) {
+            std::cout << path[i] << " -> ";
+        }
+        std::cout << path[0] << std::endl;
+    } else {
+        std::cout << "No path found from " << std::endl;
+    }
+
+    // Stop timer and print
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    std::cout << "DFS completed in " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << " microseconds" << std::endl;
+
+    // Update node colors
+    for (int node : path) {
+        if (node == nodeFrom || node == nodeTo) {
+            graph.getVertex(node)->setColor("green");
+        } else {
+            graph.getVertex(node)->setColor("yellow");
+        }
+    }
+    if (!path.empty()) {
+        for (size_t i = 0; i < path.size() - 1; i++) {
+            graph.getLinkVisualizer(path[i], path[i+1])->setColor("red");
+        }
+    }
+}
+
